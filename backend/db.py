@@ -10,6 +10,26 @@ def connect():
 
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS batches (
+    id serial PRIMARY KEY,
+    batch_no text NOT NULL UNIQUE,
+    status text NOT NULL DEFAULT 'pending',          -- pending 待抽检 / inspected 已抽检 / void 已作废
+    inspected_at timestamptz,
+    inspected_by text,
+    voided_at timestamptz,
+    voided_by text,
+    created_at timestamptz NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS batch_bindings (
+    id serial PRIMARY KEY,
+    batch_id integer NOT NULL REFERENCES batches(id),
+    string_code text NOT NULL,
+    created_by text NOT NULL,
+    created_at timestamptz NOT NULL,
+    UNIQUE (batch_id, string_code)
+);
+
 CREATE TABLE IF NOT EXISTS iv_scans (
     id serial PRIMARY KEY,
     string_code text NOT NULL,
@@ -23,6 +43,9 @@ CREATE TABLE IF NOT EXISTS iv_scans (
     created_at timestamptz NOT NULL,
     processed_at timestamptz
 );
+ALTER TABLE iv_scans ADD COLUMN IF NOT EXISTS batch_id integer REFERENCES batches(id);
+ALTER TABLE iv_scans ADD COLUMN IF NOT EXISTS batch_no text;
+
 CREATE OR REPLACE FUNCTION notify_iv_scan() RETURNS trigger AS $$
 BEGIN
   PERFORM pg_notify('iv_scan_new', NEW.id::text);
